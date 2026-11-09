@@ -31,3 +31,8 @@ class RetentionTests(unittest.TestCase):
   failed,_=retain_evidence(original,{'error':'HTTP 403'},'failed')
   current,changed=retain_evidence(failed,{'contentHash':'def','candidates':[{'quote':'After'}]},'new')
   self.assertTrue(changed);self.assertEqual(current['previousEvidence']['candidates'][0]['quote'],'Before');self.assertEqual(current['candidates'][0]['quote'],'After')
+ def test_parser_upgrade_does_not_masquerade_as_policy_change(self):
+  from state import retain_evidence
+  old={'contentHash':'old','checkedAt':'old'}
+  result,changed=retain_evidence(old,{'contentHash':'new','contentHashVersion':2,'candidates':[]},'new')
+  self.assertFalse(changed);self.assertIn('comparisonReset',result)

@@ -6,5 +6,11 @@
   "githubBlocker": "Configured GitHub authentication is invalid; target repository not provided",
   "legalRubricBlocker": "CSSNY/legal approval and standalone grading rubric not supplied",
   "aiEvaluation": "API and exact-citation validators tested; live Bedrock/Textract calls not yet evaluated",
-  "tests": {"javascriptAndApi": 16, "python": 7, "browser": "passed", "npmAudit": "no known vulnerabilities", "pdfDependencyAudit": "pypdf 7.0.0, no known vulnerabilities"}
+  "tests": {
+    "javascriptAndApi": 16,
+    "python": 8,
+    "browser": "passed",
+    "npmAudit": "no known vulnerabilities",
+    "pdfDependencyAudit": "pypdf 7.0.0, no known vulnerabilities"
+  }
 }

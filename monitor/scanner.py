@@ -116,6 +116,7 @@ def scan(url,approved_hosts=None):
  result['candidates']=result['candidates'][:18]
  result['manualReview']=len(text)<100 or any(d.get('manualReview') for d in result['documents']) or any(not d['reason'].startswith('Not a financial-assistance') for d in result['skippedDocuments'])
  result['contentHash']=hashlib.sha256('|'.join(hashes).encode()).hexdigest()
+ result['contentHashVersion']=2
  snapshots.append(('evidence-passages',json.dumps({'sourceHash':result['contentHash'],'passages':private_passages[:300]}).encode(),'application/json'))
  return result,snapshots
 def safe_error(e):

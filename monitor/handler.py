@@ -27,7 +27,7 @@ def run_scan(event,context):
   try:result,snapshots=scan(REGISTRY.get(url,{}).get('canonicalUrl',url))
   except Exception as e:result={'error':safe_error(e),'manualReview':True,'candidates':[],'documents':[]};snapshots=[]
   result,changed=retain_evidence(old,result,at)
-  if snapshots and (changed or not old.get('contentHash')):
+  if snapshots and (changed or result.get('comparisonReset') or not old.get('contentHash')):
    sid=hashlib.sha256(url.encode()).hexdigest()[:20]
    for name,body,content_type in snapshots:
     key=f'private/snapshots/{sid}/{at.replace(":","-")}/{name}'
