@@ -3,7 +3,7 @@
   "status": "deployed-and-verified",
   "liveDeploymentChanged": true,
   "awsDeploymentBlocker": null,
-  "githubBlocker": "Configured GitHub authentication is invalid; target repository not provided",
+  "githubBlocker": null,
   "legalRubricBlocker": "CSSNY/legal approval and standalone grading rubric not supplied",
   "aiEvaluation": "Bedrock invocation denied by sandbox; stopped after first attempt. Textract verified on one public scanned page (38 lines). Model accuracy not scored.",
   "tests": {
@@ -15,5 +15,7 @@
     "liveBrowser": "passed: dashboard health, browser-local decisions, exports, hosted AI disabled, mobile layout, no runtime errors"
   },
   "monitorArtifactKey": "artifacts/monitor-6389e67.zip",
-  "deployedAt": "2026-11-09T02:41:45.547635+00:00"
+  "deployedAt": "2026-11-09T02:41:45.547635+00:00",
+  "githubRepository": "https://github.com/nandowestcoast/https-github.com-nandowestcoast-carewatch-ny",
+  "githubBackup": "Full committed project history uploaded and remote head verified"
 }

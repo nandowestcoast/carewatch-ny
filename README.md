@@ -77,6 +77,8 @@ Browser integration checks use Playwright Python and Chromium at /usr/bin/chromi
 
 ## Backup
 
+Verified project repository: https://github.com/nandowestcoast/https-github.com-nandowestcoast-carewatch-ny
+
 After checking `git status`, commit changes and push to the agreed GitHub repository. `npm run backup` creates a source ZIP and a Git history bundle from committed, tracked files. Ignored .local/ data, credentials, dependencies, generated downloads, and secrets are excluded. Export your review records separately. A teammate can clone the history bundle with `git clone carewatch-history.bundle carewatch-ny`.
 
 The temporary AWS sandbox will be wiped at lease end. GitHub publication requires a valid connection and agreed repository; a local Git commit alone is not a remote backup.
