@@ -7,3 +7,9 @@ Start with five public policy documents, including an image-only page, an older 
 Measure exact citation support, correct abstention on missing facts, policy-version confusion, and reviewer time. Unsupported quotes are rejected by the server before display. A schema-passing result is not proof of factual completeness or legal correctness.
 
 Use obviously synthetic, nonclinical advocate personas: SYN-English-mobile, SYN-Spanish-low-bandwidth, SYN-Keyboard-screen-reader, and SYN-Large-text. Do not generate patient eligibility cases or add PHI. Ask each persona to find a source, recognize a historical grade, identify a failed fetch, and export a review decision. Record misunderstandings and language/accessibility gaps. Only the safety notice is translated so far; the full application remains English.
+
+## Live API checks after SSO renewal
+
+The configured small-model Bedrock Converse invocation returned AccessDenied on the first public-source sample. The batch stopped immediately; no other model or permission path was tried. Live extraction quality remains unassessed and the organizer must enable model access.
+
+Textract DetectDocumentText successfully read one explicitly public, image-only PDF page and returned 38 text lines. This verifies the bounded OCR path, not clinical accuracy or completeness. No patient data or document contents were logged.

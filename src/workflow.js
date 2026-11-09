@@ -1,7 +1,8 @@
+export function isStale(source,now=Date.now()){const last=source?.lastSuccessfulAt||(!source?.error?source?.checkedAt:null);return !last||!Number.isFinite(Date.parse(last))||now-Date.parse(last)>26*3600000;}
 export function monitoringHealth(hospitals,monitor,now=Date.now()){
  const urls=[...new Set(hospitals.map(h=>h.assistanceUrl).filter(u=>/^https?:/.test(u)))];
  const rows=urls.map(url=>({url,...(monitor.sources?.[url]||{})}));
- return {total:urls.length,attempted:rows.filter(s=>s.checkedAt).length,successful:rows.filter(s=>s.checkedAt&&!s.error).length,errors:rows.filter(s=>s.error).length,manual:rows.filter(s=>s.manualReview||s.error||s.changed).length,changed:rows.filter(s=>s.changed).length,stale:rows.filter(s=>!s.lastSuccessfulAt&&!s.checkedAt||now-Date.parse(s.lastSuccessfulAt||s.checkedAt)>26*3600000).length};
+ return {total:urls.length,attempted:rows.filter(s=>s.checkedAt).length,successful:rows.filter(s=>s.checkedAt&&!s.error).length,errors:rows.filter(s=>s.error).length,manual:rows.filter(s=>s.manualReview||s.error||s.changed).length,changed:rows.filter(s=>s.changed).length,stale:rows.filter(s=>isStale(s,now)).length};
 }
 export function citationId(c){return JSON.stringify([c.topic,c.url,c.page||null,c.quote]);}
 export function validateReview(raw,hospitals){

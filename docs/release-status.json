@@ -1,16 +1,19 @@
 {
   "release": "2.0.0",
-  "status": "tested-local-release-awaiting-external-access",
-  "liveDeploymentChanged": false,
-  "awsDeploymentBlocker": "SSO token expired; browser device authorization did not complete",
+  "status": "deployed-and-verified",
+  "liveDeploymentChanged": true,
+  "awsDeploymentBlocker": null,
   "githubBlocker": "Configured GitHub authentication is invalid; target repository not provided",
   "legalRubricBlocker": "CSSNY/legal approval and standalone grading rubric not supplied",
-  "aiEvaluation": "API and exact-citation validators tested; live Bedrock/Textract calls not yet evaluated",
+  "aiEvaluation": "Bedrock invocation denied by sandbox; stopped after first attempt. Textract verified on one public scanned page (38 lines). Model accuracy not scored.",
   "tests": {
-    "javascriptAndApi": 16,
+    "javascriptAndApi": 17,
     "python": 8,
     "browser": "passed",
     "npmAudit": "no known vulnerabilities",
-    "pdfDependencyAudit": "pypdf 7.0.0, no known vulnerabilities"
-  }
+    "pdfDependencyAudit": "pypdf 7.0.0, no known vulnerabilities",
+    "liveBrowser": "passed: dashboard health, browser-local decisions, exports, hosted AI disabled, mobile layout, no runtime errors"
+  },
+  "monitorArtifactKey": "artifacts/monitor-6389e67.zip",
+  "deployedAt": "2026-11-09T02:41:45.547635+00:00"
 }
