@@ -1,0 +1,416 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "CareWatch NY policy monitor - bounded scheduled public-source checks with private evidence snapshots and no automatic legal grades.",
+  "Metadata": {
+    "AWSToolsMetrics": {
+      "AWSAgentToolkit": "aws-cloudformation@3"
+    }
+  },
+  "Parameters": {
+    "DataBucket": {
+      "Type": "String",
+      "Description": "Existing private CareWatch application bucket"
+    },
+    "CodeKey": {
+      "Type": "String",
+      "Description": "Versioned monitor ZIP object key"
+    }
+  },
+  "Resources": {
+    "FailureQueue": {
+      "Type": "AWS::SQS::Queue",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Retain failed scheduled invocations for diagnosis",
+          "must": []
+        }
+      },
+      "Properties": {
+        "SqsManagedSseEnabled": true,
+        "MessageRetentionPeriod": 1209600
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "ScanLock": {
+      "Type": "AWS::DynamoDB::Table",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Atomic short-lived lease prevents overlapping scans without reserving sandbox concurrency",
+          "must": []
+        }
+      },
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "id",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "id",
+            "KeyType": "HASH"
+          }
+        ],
+        "SSESpecification": {
+          "SSEEnabled": true
+        },
+        "TimeToLiveSpecification": {
+          "AttributeName": "expires",
+          "Enabled": true
+        }
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "MonitorRole": {
+      "Type": "AWS::IAM::Role",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Allow public-source monitoring to update only its data and private evidence prefixes",
+          "must": [
+            "No IAM, patient records, or unrelated buckets accessible"
+          ]
+        }
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "MonitorScopedData",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "s3:GetObject",
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:s3:::${DataBucket}/site/data/baseline.json"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:s3:::${DataBucket}/site/data/monitor.json"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:s3:::${DataBucket}/private/state.json"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "s3:PutObject",
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:s3:::${DataBucket}/site/data/monitor.json"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:s3:::${DataBucket}/site/api/monitor"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:s3:::${DataBucket}/private/state.json"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:s3:::${DataBucket}/private/snapshots/*"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-crawler:*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "sqs:SendMessage",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "FailureQueue",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:PutItem",
+                    "dynamodb:DeleteItem"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "ScanLock",
+                      "Arn"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "LogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Bounded operational logs; no retrieved page bodies logged",
+          "must": []
+        }
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/lambda/${AWS::StackName}-crawler"
+        },
+        "RetentionInDays": 14
+      }
+    },
+    "MonitorFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Hourly bounded crawler; deterministic evidence candidates avoid automated legal verdicts",
+          "must": [
+            "Never overwrite baseline grades",
+            "Reject private addresses and off-host document redirects"
+          ]
+        }
+      },
+      "Properties": {
+        "FunctionName": {
+          "Fn::Sub": "${AWS::StackName}-crawler"
+        },
+        "Runtime": "python3.12",
+        "Handler": "handler.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "MonitorRole",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "S3Bucket": {
+            "Ref": "DataBucket"
+          },
+          "S3Key": {
+            "Ref": "CodeKey"
+          }
+        },
+        "Timeout": 300,
+        "MemorySize": 512,
+        "Environment": {
+          "Variables": {
+            "DATA_BUCKET": {
+              "Ref": "DataBucket"
+            },
+            "LOCK_TABLE": {
+              "Ref": "ScanLock"
+            }
+          }
+        },
+        "DeadLetterConfig": {
+          "TargetArn": {
+            "Fn::GetAtt": [
+              "FailureQueue",
+              "Arn"
+            ]
+          }
+        },
+        "Architectures": [
+          "x86_64"
+        ]
+      },
+      "DependsOn": [
+        "LogGroup"
+      ]
+    },
+    "ScheduleGroup": {
+      "Type": "AWS::Scheduler::ScheduleGroup",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Isolate scheduler trust to this application group",
+          "must": []
+        }
+      },
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}-group"
+        }
+      }
+    },
+    "SchedulerRole": {
+      "Type": "AWS::IAM::Role",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Permit this schedule group to invoke only the monitor",
+          "must": [
+            "No generic invoke or cross-account trust"
+          ]
+        }
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "scheduler.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole",
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceAccount": {
+                    "Ref": "AWS::AccountId"
+                  }
+                },
+                "ArnEquals": {
+                  "aws:SourceArn": {
+                    "Fn::GetAtt": [
+                      "ScheduleGroup",
+                      "Arn"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "InvokeOnlyMonitor",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "lambda:InvokeFunction",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "MonitorFunction",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "sqs:SendMessage",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "FailureQueue",
+                      "Arn"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "HourlyScan": {
+      "Type": "AWS::Scheduler::Schedule",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Scan a rotating batch of four source pages each hour; bounded costs and crawl rate",
+          "must": []
+        }
+      },
+      "Properties": {
+        "GroupName": {
+          "Ref": "ScheduleGroup"
+        },
+        "ScheduleExpression": "rate(1 hour)",
+        "FlexibleTimeWindow": {
+          "Mode": "OFF"
+        },
+        "State": "ENABLED",
+        "Target": {
+          "Arn": {
+            "Fn::GetAtt": [
+              "MonitorFunction",
+              "Arn"
+            ]
+          },
+          "RoleArn": {
+            "Fn::GetAtt": [
+              "SchedulerRole",
+              "Arn"
+            ]
+          },
+          "Input": "{}",
+          "RetryPolicy": {
+            "MaximumEventAgeInSeconds": 3600,
+            "MaximumRetryAttempts": 1
+          },
+          "DeadLetterConfig": {
+            "Arn": {
+              "Fn::GetAtt": [
+                "FailureQueue",
+                "Arn"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "ErrorAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Expose failures in CloudWatch without unsolicited notifications",
+          "must": []
+        }
+      },
+      "Properties": {
+        "AlarmDescription": "Investigate monitor execution errors in the application log group",
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Errors",
+        "Dimensions": [
+          {
+            "Name": "FunctionName",
+            "Value": {
+              "Ref": "MonitorFunction"
+            }
+          }
+        ],
+        "Statistic": "Sum",
+        "Period": 3600,
+        "EvaluationPeriods": 1,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching"
+      }
+    }
+  },
+  "Outputs": {
+    "FunctionName": {
+      "Value": {
+        "Ref": "MonitorFunction"
+      },
+      "Description": "Scheduled source-monitor function"
+    },
+    "ScheduleName": {
+      "Value": {
+        "Ref": "HourlyScan"
+      },
+      "Description": "Hourly source-check schedule"
+    }
+  }
+}

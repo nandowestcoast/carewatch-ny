@@ -1,0 +1,10 @@
+{
+  "https://www.arnothealth.org/financial-assistance": {
+    "canonicalUrl": "https://centralushealth.org/billing/",
+    "verification": "Original hospital URL returned an HTTPS 301 redirect to this exact URL during manual link review on 2026-11-09. Current source only; historical findings are unchanged."
+  },
+  "https://www.southnassau.org/sn/financial-assistance-program": {
+    "canonicalUrl": "https://www.mountsinai.org/about/financial-assistance",
+    "verification": "Original hospital URL returned an HTTPS 301 redirect to this exact URL during manual link review on 2026-11-09. Current source only; historical findings are unchanged."
+  }
+}

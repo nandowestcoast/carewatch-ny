@@ -1,0 +1,14 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {monitoringHealth,validateReview,exportReviews,importReviews,mergeReviews,createRubricDraft,effectiveEvidence} from '../src/workflow.js';
+import {validateExtraction} from '../backend/src/ai.js';
+const hospitals=JSON.parse(fs.readFileSync(new URL('../public/data/baseline.json',import.meta.url))).hospitals;
+const h=hospitals[0];
+const record={id:'SYN-review-1',hospitalId:h.id,sourceHash:'hash',reviewer:'Reviewer-01',reason:'Public source checked.',decision:'confirm',reviewedAt:'2026-11-08T12:00:00Z',evidenceAt:'2026-11-08T11:00:00Z',criterion:h.checks[0].key,evidenceUrl:h.assistanceUrl,quote:'A public policy passage.',page:null};
+test('monitoring health never counts failed attempts as successful',()=>{const m={sources:{[h.assistanceUrl]:{checkedAt:'2026-11-08T12:00:00Z',error:'HTTP 404',manualReview:true}}};const health=monitoringHealth(hospitals,m,Date.parse('2026-11-08T13:00:00Z'));assert.equal(health.errors,1);assert.equal(health.successful,0);});
+test('review export/import validates, deduplicates, and preserves the baseline',()=>{const before=JSON.stringify(hospitals);const r=validateReview(record,hospitals);const imported=importReviews(exportReviews([r]),hospitals);assert.equal(mergeReviews(imported,imported).length,1);assert.equal(imported[0].baselineUnchanged,true);assert.equal(JSON.stringify(hospitals),before);});
+test('reviews reject unknown hospitals, script links, invalid criteria, and malformed dates',()=>{for(const delta of [{hospitalId:'bad'},{evidenceUrl:'javascript:alert(1)'},{criterion:'bad'},{reviewedAt:'bad'}])assert.throws(()=>validateReview({...record,...delta},hospitals));});
+test('current legal rubric stays blocked without partner approval',()=>{const r=createRubricDraft(h);assert.equal(r.status,'awaiting-partner-approval');assert.equal(r.gradeThresholds,null);assert.ok(r.criteria.every(c=>c.weight===null&&c.legalCitation===null));});
+test('failed sources show preserved evidence rather than fabricate new evidence',()=>{const last={contentHash:'abc',candidates:[{quote:'Old text'}]};assert.equal(effectiveEvidence({error:'HTTP 403',lastGoodEvidence:last}),last);assert.equal(effectiveEvidence({error:'HTTP 403'}),null);});
+test('AI schema rejects hallucinated quotations and unsupported statuses',()=>{const topics=['income','installments','timeframe','service-area','languages'];const findings=topics.map(topic=>({topic,status:'unknown',quote:'',citationIndex:null}));findings[0]={topic:'income',status:'found',quote:'400%',citationIndex:0};assert.equal(validateExtraction({findings},[{quote:'Income up to 400%',url:'https://example.org'}]).humanApprovalRequired,true);assert.throws(()=>validateExtraction({findings:[{...findings[0],quote:'999%'},...findings.slice(1)]},[{quote:'Income up to 400%',url:'https://example.org'}]));});

@@ -1,0 +1,299 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "CareWatch NY dashboard - private S3 origin with public HTTPS CloudFront delivery of hospital policy review data.",
+  "Metadata": {
+    "AWSToolsMetrics": {
+      "AWSAgentToolkit": "aws-cloudformation@3"
+    }
+  },
+  "Resources": {
+    "SiteBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Private storage for website, review baseline, and immutable evidence snapshots",
+          "must": [
+            "Public reads only through CloudFront and limited to site/"
+          ]
+        }
+      },
+      "Properties": {
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "Id": "ExpireOldSnapshots",
+              "Status": "Enabled",
+              "Prefix": "private/snapshots/",
+              "ExpirationInDays": 90,
+              "NoncurrentVersionExpiration": {
+                "NoncurrentDays": 30
+              }
+            },
+            {
+              "Id": "ExpireOldArtifactVersions",
+              "Status": "Enabled",
+              "NoncurrentVersionExpiration": {
+                "NoncurrentDays": 30
+              }
+            }
+          ]
+        }
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "OriginAccess": {
+      "Type": "AWS::CloudFront::OriginAccessControl",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Sign CloudFront origin requests without public S3 access",
+          "must": []
+        }
+      },
+      "Properties": {
+        "OriginAccessControlConfig": {
+          "Name": {
+            "Fn::Sub": "${AWS::StackName}-origin"
+          },
+          "OriginAccessControlOriginType": "s3",
+          "SigningBehavior": "always",
+          "SigningProtocol": "sigv4"
+        }
+      }
+    },
+    "SecurityHeaders": {
+      "Type": "AWS::CloudFront::ResponseHeadersPolicy",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Enforce HTTPS and same-origin assets; no third-party analytics",
+          "must": []
+        }
+      },
+      "Properties": {
+        "ResponseHeadersPolicyConfig": {
+          "Name": {
+            "Fn::Sub": "${AWS::StackName}-headers"
+          },
+          "SecurityHeadersConfig": {
+            "ContentTypeOptions": {
+              "Override": true
+            },
+            "FrameOptions": {
+              "FrameOption": "DENY",
+              "Override": true
+            },
+            "ReferrerPolicy": {
+              "ReferrerPolicy": "no-referrer",
+              "Override": true
+            },
+            "StrictTransportSecurity": {
+              "AccessControlMaxAgeSec": 31536000,
+              "IncludeSubdomains": true,
+              "Override": true
+            },
+            "ContentSecurityPolicy": {
+              "ContentSecurityPolicy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'none'",
+              "Override": true
+            }
+          }
+        }
+      }
+    },
+    "Distribution": {
+      "Type": "AWS::CloudFront::Distribution",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Public HTTPS dashboard; uncached data paths show new monitoring results",
+          "must": [
+            "No private snapshot or state object may be exposed"
+          ]
+        }
+      },
+      "Properties": {
+        "DistributionConfig": {
+          "Enabled": true,
+          "Comment": "CareWatch NY public financial assistance observatory",
+          "DefaultRootObject": "index.html",
+          "HttpVersion": "http2and3",
+          "IPV6Enabled": true,
+          "PriceClass": "PriceClass_100",
+          "Origins": [
+            {
+              "Id": "PrivateSite",
+              "DomainName": {
+                "Fn::GetAtt": [
+                  "SiteBucket",
+                  "RegionalDomainName"
+                ]
+              },
+              "OriginPath": "/site",
+              "S3OriginConfig": {
+                "OriginAccessIdentity": ""
+              },
+              "OriginAccessControlId": {
+                "Ref": "OriginAccess"
+              }
+            }
+          ],
+          "DefaultCacheBehavior": {
+            "TargetOriginId": "PrivateSite",
+            "ViewerProtocolPolicy": "redirect-to-https",
+            "AllowedMethods": [
+              "GET",
+              "HEAD"
+            ],
+            "CachedMethods": [
+              "GET",
+              "HEAD"
+            ],
+            "Compress": true,
+            "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
+            "ResponseHeadersPolicyId": {
+              "Ref": "SecurityHeaders"
+            }
+          },
+          "CacheBehaviors": [
+            {
+              "PathPattern": "api/*",
+              "TargetOriginId": "PrivateSite",
+              "ViewerProtocolPolicy": "redirect-to-https",
+              "AllowedMethods": [
+                "GET",
+                "HEAD"
+              ],
+              "CachedMethods": [
+                "GET",
+                "HEAD"
+              ],
+              "Compress": true,
+              "CachePolicyId": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",
+              "ResponseHeadersPolicyId": {
+                "Ref": "SecurityHeaders"
+              }
+            },
+            {
+              "PathPattern": "data/*",
+              "TargetOriginId": "PrivateSite",
+              "ViewerProtocolPolicy": "redirect-to-https",
+              "AllowedMethods": [
+                "GET",
+                "HEAD"
+              ],
+              "CachedMethods": [
+                "GET",
+                "HEAD"
+              ],
+              "Compress": true,
+              "CachePolicyId": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",
+              "ResponseHeadersPolicyId": {
+                "Ref": "SecurityHeaders"
+              }
+            }
+          ],
+          "ViewerCertificate": {
+            "CloudFrontDefaultCertificate": true
+          }
+        }
+      }
+    },
+    "BucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Limit origin reads to this distribution and site prefix",
+          "must": [
+            "Keep private/ inaccessible through CDN"
+          ]
+        }
+      },
+      "Properties": {
+        "Bucket": {
+          "Ref": "SiteBucket"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "DenyInsecureTransport",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "SiteBucket",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${SiteBucket.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            },
+            {
+              "Sid": "AllowCloudFrontSiteOnly",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudfront.amazonaws.com"
+              },
+              "Action": "s3:GetObject",
+              "Resource": {
+                "Fn::Sub": "${SiteBucket.Arn}/site/*"
+              },
+              "Condition": {
+                "StringEquals": {
+                  "AWS:SourceArn": {
+                    "Fn::Sub": "arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${Distribution}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "Bucket": {
+      "Value": {
+        "Ref": "SiteBucket"
+      },
+      "Description": "Private application and evidence bucket"
+    },
+    "DistributionId": {
+      "Value": {
+        "Ref": "Distribution"
+      },
+      "Description": "Dashboard distribution"
+    },
+    "Url": {
+      "Value": {
+        "Fn::Sub": "https://${Distribution.DomainName}"
+      },
+      "Description": "Public dashboard HTTPS URL"
+    }
+  }
+}

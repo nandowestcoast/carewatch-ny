@@ -1,0 +1,13 @@
+# Laptop showcase runbook
+
+1. Clone the Git repository or unzip the source download. Run `npm ci`, then `npm run dev` and open http://127.0.0.1:5173. No AWS access is needed to explore the bundled data, create/export/import review decisions, or inspect the rubric draft.
+2. Start with the historical baseline notice. Explain that the letter grades belong to September 2025 and are never automatically overwritten.
+3. Open monitoring health. Compare attempted pages, successful retrievals, failed fetches, human-attention flags, and stale evidence. Source pages and hospitals are different denominators.
+4. Open Bertrand Chaffee Hospital, then Current evidence. Inspect a cited passage, choose a review check, record a reviewer alias and confirm/reject/unclear decision with a reason. Export reviews and import them on a teammate's laptop. Local file persistence is under `.local/`, which is excluded from Git.
+5. Show skipped documents and a failed source. Errors preserve the last successful evidence after the upgraded monitor has captured it. Older failures without retained evidence remain explicitly unavailable. Before/after comparisons are available only for changes captured by the upgraded monitor.
+6. Show the blocked rubric draft. Explain the partner/legal approval needed for any current grade. No invented approval or current compliance score.
+7. Optional AI demo: configure SSO in the laptop terminal, export AI_ENABLED=true, AWS_REGION=us-east-1, AWS_PROFILE=aws-workshop, and an enabled US inference profile MODEL_ID, then restart npm run dev. The default small-model ID is a documented configuration value, not a claim that the sandbox permits it. Select one public source and confirm it is non-sensitive. Exact-quote validation rejects unsupported quotations; unknown remains unknown. Do not claim live model accuracy until the evaluation in ai-evaluation.md has been completed.
+8. Optional public single-page OCR: `node scripts/ocr.mjs public-page.pdf --public-document`. The operator explicitly confirms the file is public and non-sensitive. No patient records. Output goes to ignored `.local/ocr-cache/`; no document text is logged.
+9. Before stopping: export review records, inspect git status, commit code changes, and push to the agreed GitHub repository. Download a source ZIP and Git history bundle as an additional backup before the sandbox lease ends.
+
+If a website blocks automated access, stop at the error and use manual document review. Do not bypass robots rules, TLS, IAM, or host validation. The full UI is English; the safety notice also has Spanish text. Broader language support and an independent accessibility audit remain future evaluation work.
