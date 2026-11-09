@@ -13,3 +13,7 @@ Use obviously synthetic, nonclinical advocate personas: SYN-English-mobile, SYN-
 The configured small-model Bedrock Converse invocation returned AccessDenied on the first public-source sample. The batch stopped immediately; no other model or permission path was tried. Live extraction quality remains unassessed and the organizer must enable model access.
 
 Textract DetectDocumentText successfully read one explicitly public, image-only PDF page and returned 38 text lines. This verifies the bounded OCR path, not clinical accuracy or completeness. No patient data or document contents were logged.
+
+## Subsequent access recheck
+
+A fresh invocation of us.amazon.nova-lite-v1:0 succeeded without changing IAM permissions. The earlier denial is historical; its cause has not been established. CareWatch then attempted five public-source samples: four passed schema and exact-citation validation, and one was rejected because a proposed quote did not exactly match supplied text. The rejected output contributed no accepted findings. No model accuracy score or legal correctness is claimed. See bedrock-verification.json for the bounded test summary.

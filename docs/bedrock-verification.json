@@ -1,0 +1,10 @@
+{
+  "modelId": "us.amazon.nova-lite-v1:0",
+  "availability": "verified with successful Converse calls",
+  "attemptedSamples": 5,
+  "validatedExtractions": 4,
+  "rejectedExtractions": 1,
+  "rejectionReason": "One output did not reproduce an exact source quote; validator accepted no findings from that response.",
+  "accuracy": "Not scored; no human gold-standard labels supplied.",
+  "iamChanges": "None"
+}

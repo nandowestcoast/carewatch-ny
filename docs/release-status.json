@@ -5,7 +5,7 @@
   "awsDeploymentBlocker": null,
   "githubBlocker": null,
   "legalRubricBlocker": "CSSNY/legal approval and standalone grading rubric not supplied",
-  "aiEvaluation": "Bedrock invocation denied by sandbox; stopped after first attempt. Textract verified on one public scanned page (38 lines). Model accuracy not scored.",
+  "aiEvaluation": "Bedrock access now verified: five sample calls, four schema/exact-citation validations passed, one output rejected. Accuracy not scored. Textract OCR also verified.",
   "tests": {
     "javascriptAndApi": 17,
     "python": 8,
